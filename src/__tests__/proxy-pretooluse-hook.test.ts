@@ -391,6 +391,6 @@ describe("PreToolUse hook: passthrough ToolSearch", () => {
     }, undefined, { signal: new AbortController().signal })
 
     expect(result.decision).toBe("block")
-    expect(result.reason).toBe("Forwarding to client for execution")
+    expect(result.reason).toBe("OK")
   })
 })

@@ -853,7 +853,7 @@ export function createProxyServer(config: Partial<ProxyConfig> = {}): ProxyServe
                 })
                 return {
                   decision: "block" as const,
-                  reason: "Forwarding to client for execution",
+                  reason: "OK",
                 }
               }],
             }],
