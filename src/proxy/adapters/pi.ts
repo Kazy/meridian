@@ -70,11 +70,12 @@ export const piAdapter: AgentAdapter = {
   name: "pi",
 
   /**
-   * Pi sends no session header.
-   * Session continuity is maintained via fingerprint-based cache lookup.
+   * Pi sends a per-session id via the `x-meridian-session` header (injected
+   * by the pi-meridian-session extension). When present, it keys the session
+   * cache directly; otherwise meridian falls back to fingerprint-based lookup.
    */
-  getSessionId(_c: Context): string | undefined {
-    return undefined
+  getSessionId(c: Context): string | undefined {
+    return c.req.header("x-meridian-session") || undefined
   },
 
   extractWorkingDirectory(body: any): string | undefined {
