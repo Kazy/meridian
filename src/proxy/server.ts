@@ -953,17 +953,24 @@ export function createProxyServer(config: Partial<ProxyConfig> = {}): ProxyServe
                   input: toolInput,
                 })
                 // The reason text is read by the model as the "tool result" of
-                // a denied call. With a vague reason ("Forwarding to client for
-                // execution") modern Claude tends to retry with a different
-                // tool, burning the maxTurns budget. Be explicit that the call
-                // succeeded externally and that the model should stop here —
-                // see telemetry for the failure mode this addresses.
+                // a denied call, and it persists in the conversation history
+                // that later turns replay. Two failure modes to thread:
+                //   1. A vague reason ("Forwarding to client for execution")
+                //      makes modern Claude retry the same work with a DIFFERENT
+                //      tool, burning the maxTurns budget — so be explicit that
+                //      the call succeeded externally and there's nothing left to do.
+                //   2. A blanket "do not call additional tools" conditions the
+                //      model toward one-tool-per-turn: every replayed deny
+                //      reinforces it, which defeats legitimate parallel tool
+                //      batching. Scope the instruction to THIS call's lifecycle
+                //      instead of issuing a standing "never batch" rule.
                 return {
                   decision: "block" as const,
                   reason:
-                    "This tool call has been forwarded to the client for execution. " +
-                    "The result will be delivered in a future turn. " +
-                    "Do not retry, do not call additional tools, and do not generate further text — end your turn now.",
+                    "This tool call has been forwarded to the client for execution; " +
+                    "its result will be delivered next turn. " +
+                    "Do not retry it, do not re-issue it as a different tool, and " +
+                    "do not summarize a result you do not have yet — end your turn now.",
                 }
               }],
             }],

@@ -391,11 +391,15 @@ describe("PreToolUse hook: passthrough ToolSearch", () => {
     }, undefined, { signal: new AbortController().signal })
 
     expect(result.decision).toBe("block")
-    // Reason must explicitly tell the model NOT to retry or emit further
-    // tools — without this nudge, modern Claude treats the deny as "try
-    // something else" and burns the maxTurns budget on retries.
+    // Reason must (a) confirm the call succeeded externally so modern Claude
+    // doesn't "try something else" with a different tool and burn the maxTurns
+    // budget, and (b) tell it to end the turn now. It must NOT issue a blanket
+    // "don't call more tools" rule: that reason persists in replayed history
+    // and conditions the model toward serial one-tool-per-turn behaviour,
+    // defeating legitimate parallel tool batching.
     expect(result.reason).toContain("forwarded to the client for execution")
     expect(result.reason.toLowerCase()).toContain("do not retry")
     expect(result.reason.toLowerCase()).toContain("end your turn")
+    expect(result.reason.toLowerCase()).not.toContain("additional tools")
   })
 })
