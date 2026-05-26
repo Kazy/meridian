@@ -49,7 +49,7 @@ while true; do
   fi
 
   # Run in subshell so crashes don't kill the supervisor
-  (exec $PROXY_CMD)
+  (exec $PROXY_CMD $@)
   EXIT_CODE=$?
 
   if [ $SHUTTING_DOWN -eq 1 ] || [ $EXIT_CODE -eq 0 ]; then
