@@ -43,6 +43,8 @@ export interface ProxyServer {
   config: ProxyConfig
   /** Load plugins from disk and wire them into the request pipeline */
   initPlugins?(): Promise<void>
+  /** Attach the reverse-channel websocket upgrade handler to the http server. */
+  injectWebSocket?(server: Server): void
 }
 
 export const DEFAULT_PROXY_CONFIG: ProxyConfig = {

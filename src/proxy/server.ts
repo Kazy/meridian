@@ -39,6 +39,7 @@ import { promisify } from "util"
 import { randomUUID } from "crypto"
 import { withClaudeLogContext } from "../logger"
 import { createPassthroughMcpServer, stripMcpPrefix, normalizeToolInput, computeToolSetKey, PASSTHROUGH_MCP_NAME, PASSTHROUGH_MCP_PREFIX } from "./passthroughTools"
+import { registerReverseChannel } from "./reverseChannel"
 import { resolveAgentAlias } from "./agentMatch"
 import { LRUMap } from "../utils/lruMap"
 
@@ -3057,6 +3058,10 @@ export function createProxyServer(config: Partial<ProxyConfig> = {}): ProxyServe
     })
   })
 
+  // Reverse-channel websocket endpoint (issue #496). Must be registered
+  // before the catch-all so the upgrade GET isn't shadowed by the 404 handler.
+  const injectReverseWebSocket = registerReverseChannel(app, () => pluginTransforms)
+
   // Catch-all: log unhandled requests
   app.all("*", (c) => {
     plog(`[PROXY] UNHANDLED ${c.req.method} ${c.req.url}`)
@@ -3078,7 +3083,7 @@ export function createProxyServer(config: Partial<ProxyConfig> = {}): ProxyServe
     }
   }
 
-  return { app, config: finalConfig, initPlugins: initPluginsAsync }
+  return { app, config: finalConfig, initPlugins: initPluginsAsync, injectWebSocket: injectReverseWebSocket }
 }
 
 /**
@@ -3107,7 +3112,7 @@ export function installProxyProcessErrorHandlers(): void {
 
 export async function startProxyServer(config: Partial<ProxyConfig> = {}): Promise<ProxyInstance> {
   claudeExecutable = await resolveClaudeExecutableAsync()
-  const { app, config: finalConfig, initPlugins } = createProxyServer(config)
+  const { app, config: finalConfig, initPlugins, injectWebSocket } = createProxyServer(config)
   if (initPlugins) await initPlugins()
 
   if (finalConfig.installProcessErrorHandlers) {
@@ -3137,6 +3142,10 @@ export async function startProxyServer(config: Partial<ProxyConfig> = {}): Promi
       console.log(`  ANTHROPIC_API_KEY=x ANTHROPIC_BASE_URL=http://${finalConfig.host}:${info.port}`)
     }
   }) as Server
+
+  // node-ws: attach the websocket upgrade handler to the http server so the
+  // /v1/reverse route can accept connections.
+  injectWebSocket?.(server)
 
   const idleMs = finalConfig.idleTimeoutSeconds * 1000
   server.keepAliveTimeout = idleMs
